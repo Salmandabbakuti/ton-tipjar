@@ -1,10 +1,6 @@
 import { useState } from "react";
 import "@twa-dev/sdk";
-import {
-  useTonConnectUI,
-  useTonWallet,
-  useTonAddress
-} from "@tonconnect/ui-react";
+import { useTonConnectUI, useTonWallet, CHAIN } from "@tonconnect/ui-react";
 import {
   Card,
   Input,
@@ -13,59 +9,61 @@ import {
   Typography,
   Space,
   message,
-  Steps
+  Steps,
+  Form
 } from "antd";
 import {
   SendOutlined,
   WalletOutlined,
   UserOutlined,
-  DollarOutlined,
-  MessageOutlined
+  DollarOutlined
 } from "@ant-design/icons";
 import "./App.css";
 
 const { Title, Text } = Typography;
 
-function App() {
-  const [recipientAddress, setRecipientAddress] = useState("");
-  const [tipAmount, setTipAmount] = useState(0.1);
-  const [message_text, setMessage] = useState("");
+const quickTipAmounts = [0.1, 0.5, 1, 2, 5, 10, 15, 25];
+
+const steps = [
+  {
+    title: "Connect",
+    description: "Connect your TON wallet",
+    icon: <WalletOutlined />
+  },
+  {
+    title: "Enter Details",
+    description: "Add recipient and amount",
+    icon: <UserOutlined />
+  },
+  {
+    title: "Send Tip",
+    description: "Confirm transaction",
+    icon: <SendOutlined />
+  }
+];
+
+export default function App() {
   const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
 
   const [tonConnectUI] = useTonConnectUI();
   const wallet = useTonWallet();
-  const tonAddress = useTonAddress(true);
-  console.log("Wallet Address:", tonAddress);
 
-  const handleSendTip = async () => {
-    if (!wallet) {
-      message.error("Please connect your wallet first");
-      return;
-    }
-
-    if (!recipientAddress) {
-      message.error("Please enter a recipient address");
-      return;
-    }
-
-    if (!tipAmount || tipAmount <= 0) {
-      message.error("Please enter a valid tip amount");
-      return;
-    }
-
+  const handleSendTip = async (values) => {
+    if (!wallet) return message.error("Please connect your wallet first");
     setLoading(true);
-
     try {
       // Convert TON to nanotons (1 TON = 1e9 nanotons)
-      const amountInNanotons = Math.floor(tipAmount * 1e9);
+      const amountInNanotons = Math.floor(values.tipAmount * 1e9);
 
       const transaction = {
-        validUntil: Math.floor(Date.now() / 1000) + 60, // 60 seconds from now
+        validUntil: Math.floor(Date.now() / 1000) + 120, // 120 seconds from now
+        network: CHAIN.TESTNET, // Use CHAIN.MAINNET for mainnet
         messages: [
           {
-            address: recipientAddress,
+            address: values.recipientAddress,
             amount: amountInNanotons.toString(),
-            payload: message_text || "Tip from TipJar 🎉"
+            payload: values.message || "Tip from TipJar 🎉"
           }
         ]
       };
@@ -75,9 +73,7 @@ function App() {
       if (result) {
         message.success("Tip sent successfully! 🎉");
         // Reset form
-        setRecipientAddress("");
-        setTipAmount(0.1);
-        setMessage("");
+        form.resetFields();
       }
     } catch (error) {
       console.error("Error sending tip:", error);
@@ -86,26 +82,6 @@ function App() {
       setLoading(false);
     }
   };
-
-  const quickTipAmounts = [0.1, 0.5, 1, 2, 5, 10];
-
-  const steps = [
-    {
-      title: "Connect",
-      description: "Connect your TON wallet",
-      icon: <WalletOutlined />
-    },
-    {
-      title: "Enter Details",
-      description: "Add recipient and amount",
-      icon: <UserOutlined />
-    },
-    {
-      title: "Send Tip",
-      description: "Confirm transaction",
-      icon: <SendOutlined />
-    }
-  ];
 
   return (
     <div
@@ -138,7 +114,13 @@ function App() {
           <Title level={2} style={{ color: "white", margin: 0 }}>
             💰 TipJar
           </Title>
-          <Text style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "16px" }}>
+          <Text
+            style={{
+              color: "rgba(255, 255, 255, 0.9)",
+              fontSize: "16px",
+              fontWeight: "500"
+            }}
+          >
             Send tips easily from Telegram with TON
           </Text>
         </Card>
@@ -146,25 +128,45 @@ function App() {
         {/* Main Content */}
         {wallet ? (
           <Card style={{ width: "100%" }}>
-            <Space direction="vertical" size="large" style={{ width: "100%" }}>
-              <Input
-                size="large"
-                placeholder="Recipient TON address (EQC...)"
-                value={recipientAddress}
-                onChange={(e) => setRecipientAddress(e.target.value)}
-                prefix={<UserOutlined style={{ color: "#1890ff" }} />}
-              />
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSendTip}
+              initialValues={{
+                tipAmount: 0.1
+              }}
+            >
+              <Form.Item
+                name="recipientAddress"
+                label="Recipient Address"
+                rules={[
+                  { required: true, message: "Please enter recipient address" },
+                  { min: 10, message: "Please enter a valid TON address" }
+                ]}
+              >
+                <Input
+                  size="large"
+                  placeholder="Recipient TON address (EQC...)"
+                  prefix={<UserOutlined style={{ color: "#1890ff" }} />}
+                />
+              </Form.Item>
 
-              <Space
-                direction="vertical"
-                size="small"
-                style={{ width: "100%" }}
+              <Form.Item
+                name="tipAmount"
+                label="Amount (TON)"
+                rules={[
+                  { required: true, message: "Please enter tip amount" },
+                  {
+                    type: "number",
+                    min: 0.001,
+                    max: 1000,
+                    message: "Amount must be between 0.001 and 1000 TON"
+                  }
+                ]}
               >
                 <InputNumber
                   size="large"
                   style={{ width: "100%" }}
-                  value={tipAmount}
-                  onChange={(value) => setTipAmount(value)}
                   min={0.001}
                   max={1000}
                   step={0.1}
@@ -172,48 +174,62 @@ function App() {
                   placeholder="Amount in TON"
                   prefix={<DollarOutlined />}
                 />
+              </Form.Item>
+
+              <Form.Item>
                 <Space wrap style={{ width: "100%", justifyContent: "center" }}>
                   {quickTipAmounts.map((amount) => (
                     <Button
                       key={amount}
                       size="small"
-                      type={tipAmount === amount ? "primary" : "default"}
-                      onClick={() => setTipAmount(amount)}
+                      type={
+                        form.getFieldValue("tipAmount") === amount
+                          ? "primary"
+                          : "default"
+                      }
+                      onClick={() => form.setFieldsValue({ tipAmount: amount })}
                       style={{ borderRadius: "20px" }}
                     >
                       {amount} TON
                     </Button>
                   ))}
                 </Space>
-              </Space>
+              </Form.Item>
 
-              <Input.TextArea
-                placeholder="Add a message with your tip... (optional)"
-                value={message_text}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={3}
-                maxLength={200}
-                prefix={<MessageOutlined />}
-                showCount
-              />
-
-              <Button
-                type="primary"
-                size="large"
-                block
-                icon={<SendOutlined />}
-                loading={loading}
-                onClick={handleSendTip}
-                style={{
-                  height: "50px",
-                  fontSize: "16px",
-                  borderRadius: "8px",
-                  background: "linear-gradient(45deg, #1890ff, #40a9ff)"
-                }}
+              <Form.Item
+                name="message"
+                label="Message (Optional)"
+                rules={[
+                  { max: 200, message: "Message cannot exceed 200 characters" }
+                ]}
               >
-                Send Tip 🚀
-              </Button>
-            </Space>
+                <Input.TextArea
+                  placeholder="Add a message with your tip... (optional)"
+                  rows={3}
+                  maxLength={200}
+                  showCount
+                />
+              </Form.Item>
+
+              <Form.Item>
+                <Button
+                  type="primary"
+                  size="large"
+                  block
+                  icon={<SendOutlined />}
+                  loading={loading}
+                  htmlType="submit"
+                  style={{
+                    height: "50px",
+                    fontSize: "16px",
+                    borderRadius: "8px",
+                    background: "linear-gradient(45deg, #1890ff, #40a9ff)"
+                  }}
+                >
+                  Send Tip 🚀
+                </Button>
+              </Form.Item>
+            </Form>
           </Card>
         ) : (
           <Card
@@ -244,5 +260,3 @@ function App() {
     </div>
   );
 }
-
-export default App;
