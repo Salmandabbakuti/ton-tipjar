@@ -139,7 +139,7 @@ function App() {
             💰 TipJar
           </Title>
           <Text style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: "16px" }}>
-            Send tips easily on the TON blockchain
+            Send tips easily from Telegram with TON
           </Text>
         </Card>
 

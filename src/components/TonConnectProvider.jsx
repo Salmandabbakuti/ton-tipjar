@@ -6,7 +6,7 @@ export default function TonConnectProvider({ children }) {
   useEffect(() => setMounted(true), []);
 
   return (
-    <TonConnectUIProvider manifestUrl="https://ton-tpjar.vercel.app/tonconnect-manifest.json">
+    <TonConnectUIProvider manifestUrl="https://ton-tipjar.vercel.app/tonconnect-manifest.json">
       {mounted && children}
     </TonConnectUIProvider>
   );
